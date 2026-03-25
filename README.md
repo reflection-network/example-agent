@@ -40,18 +40,26 @@ docker run --rm ada:latest
 
 ## Using with an adapter
 
-To give Ada a real backend (Claude Code + Telegram), change the import:
+To give Ada a real backend, change the import to an adapter. The agent config stays the same — only the import changes.
+
+### adapter-claude
+
+Claude Code CLI backend with Telegram long-poll transport:
 
 ```nix
 inputs.adapter-claude.url = "github:reflection-network/adapter-claude";
 
 outputs = { self, adapter-claude }:
   adapter-claude.lib.mkAgent {
-    agent = { /* same config */ };
+    agent = {
+      name = "Ada";
+      system-prompt = ''
+        You are Ada, a helpful assistant.
+        You respond in the same language the user writes to you.
+      '';
+    };
   };
 ```
-
-Then build and run with credentials:
 
 ```bash
 nix build .#docker
@@ -62,7 +70,40 @@ docker run --rm \
   ada:latest
 ```
 
+### adapter-zeroclaw
+
+ZeroClaw runtime (Rust binary) with native Telegram channel, 60+ built-in tools, SQLite memory:
+
+```nix
+inputs.adapter-zeroclaw.url = "github:reflection-network/adapter-zeroclaw";
+
+outputs = { self, adapter-zeroclaw }:
+  adapter-zeroclaw.lib.mkAgent {
+    agent = {
+      name = "Ada";
+      system-prompt = ''
+        You are Ada, a helpful assistant.
+        You respond in the same language the user writes to you.
+      '';
+      provider = "claude-code";
+      model = "claude-sonnet-4-5-20250929";
+      transports.telegram.enable = true;
+    };
+  };
+```
+
+```bash
+nix build .#docker
+docker load < result
+docker run -d --memory 4g \
+  -e TELEGRAM_BOT_TOKEN=<token> \
+  -v ~/.claude/.credentials.json:/home/agent/.claude/.credentials.json \
+  ada:latest
+```
+
+See [Adapters](https://docs.reflection.network/adapters) for full details on both adapters, including provider options and schema support.
+
 ## Documentation
 
 - [Getting started](https://docs.reflection.network/getting-started) — step-by-step capsule creation
-- [Adapters](https://docs.reflection.network/adapters) — connecting to Claude Code + Telegram
+- [Adapters](https://docs.reflection.network/adapters) — available adapters and the adapter pattern
